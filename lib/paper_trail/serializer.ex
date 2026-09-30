@@ -103,7 +103,12 @@ defmodule PaperTrail.Serializer do
   @spec serialize(nil | Ecto.Changeset.t() | struct()) :: nil | map()
   def serialize(nil), do: nil
   def serialize(%Ecto.Changeset{data: data}), do: serialize(data)
-  def serialize(%_schema{} = model), do: Ecto.embedded_dump(model, :json)
+
+  def serialize(%schema{} = model) do
+    model
+    |> Ecto.embedded_dump(:json)
+    |> Map.merge(dumped_fields(schema, model))
+  end
 
   @doc """
   Dumps changes using Ecto fields
@@ -158,6 +163,32 @@ defmodule PaperTrail.Serializer do
       _ ->
         "#{model_id}"
     end
+  end
+
+  # A type that embeds as itself (`embed_as/1` returning `:self`) never has
+  # `dump/1` called by `Ecto.embedded_dump/2`. For a type whose `dump/1`
+  # encrypts, that writes the plaintext into `item_changes`. Fields of a type
+  # listed in `:dumped_types` are stored as their dumped value instead,
+  # Base64-encoded because a dumped value need not be valid UTF-8 and
+  # `item_changes` is JSON.
+  @spec dumped_fields(module(), struct()) :: map()
+  defp dumped_fields(schema, model) do
+    dumped_types = RepoClient.dumped_types()
+
+    for field <- schema.__schema__(:fields),
+        type = schema.__schema__(:type, field),
+        type in dumped_types,
+        into: %{} do
+      {schema.__schema__(:field_source, field), encode_dumped(type, Map.fetch!(model, field))}
+    end
+  end
+
+  @spec encode_dumped(Ecto.Type.t(), term()) :: nil | String.t()
+  defp encode_dumped(_type, nil), do: nil
+
+  defp encode_dumped(type, value) do
+    {:ok, dumped} = Ecto.Type.dump(type, value)
+    Base.encode64(dumped)
   end
 
   @spec serialize_model_changes(nil) :: nil

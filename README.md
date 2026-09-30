@@ -186,6 +186,20 @@ defmodule Acme.User do
 
 Remember to edit the types accordingly in the generated migration.
 
+#### Storing dumped values for encrypted fields
+
+`item_changes` is built with `Ecto.embedded_dump/2`, which stores a field's
+Elixir value whenever its type embeds as itself. Encryption types such as
+`Cloak.Ecto.Binary` do, so their fields land in `item_changes` as plaintext.
+List those types in `:dumped_types` and their fields are stored as the value
+the type's `dump/1` returns (the ciphertext), Base64-encoded:
+
+```elixir
+config :paper_trail, dumped_types: [MyApp.Encrypted.Binary, MyApp.Encrypted.Map]
+```
+
+To read one back, `Base.decode64!/1` it and pass the result to the type's `load/1`.
+
 ### Version origin references:
 
 PaperTrail records have a string field called ```origin```. ```PaperTrail.insert/2```, ```PaperTrail.update/2```, ```PaperTrail.delete/2``` functions accept a second argument to describe the origin of this version:
