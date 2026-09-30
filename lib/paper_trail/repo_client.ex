@@ -10,6 +10,7 @@ defmodule PaperTrail.RepoClient do
   def originator_relationship_opts, do: env(:originator_relationship_options, [])
   def timestamps_type, do: env(:timestamps_type, :utc_datetime)
   def origin_read_after_writes(), do: env(:origin_read_after_writes, true)
+  def dumped_types, do: env(:dumped_types, [])
 
   defp env(k, default), do: Application.get_env(:paper_trail, k, default)
 end
